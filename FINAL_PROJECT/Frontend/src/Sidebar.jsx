@@ -2,25 +2,31 @@ import "./Sidebar.css";
 import { useContext, useEffect } from "react";
 import { MyContext } from "./MyContext.jsx";
 import {v1 as uuidv1} from "uuid";
+import { API_URL } from "./config.js";
+import logo from "./assets/blacklogo.png";
 
 function Sidebar() {
     const {allThreads, setAllThreads, currThreadId, setNewChat, setPrompt, setReply, setCurrThreadId, setPrevChats} = useContext(MyContext);
 
-    const getAllThreads = async () => {
-        try {
-            const response = await fetch("http://localhost:8080/api/thread");
-            const res = await response.json();
-            const filteredData = res.map(thread => ({threadId: thread.threadId, title: thread.title}));
-            //console.log(filteredData);
-            setAllThreads(filteredData);
-        } catch(err) {
-            console.log(err);
-        }
-    };
-
     useEffect(() => {
+        const getAllThreads = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/thread`);
+                const res = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(res?.error || "Failed to load threads");
+                }
+
+                const filteredData = res.map(thread => ({threadId: thread.threadId, title: thread.title}));
+                setAllThreads(filteredData);
+            } catch {
+                return;
+            }
+        };
+
         getAllThreads();
-    }, [currThreadId])
+    }, [currThreadId, setAllThreads])
 
 
     const createNewChat = () => {
@@ -32,57 +38,62 @@ function Sidebar() {
     }
 
     const changeThread = async (newThreadId) => {
-        setCurrThreadId(newThreadId);
-
         try {
-            const response = await fetch(`http://localhost:8080/api/thread/${newThreadId}`);
+            const response = await fetch(`${API_URL}/api/thread/${newThreadId}`);
             const res = await response.json();
-            console.log(res);
+
+            if (!response.ok) {
+                throw new Error(res?.error || "Failed to load thread");
+            }
+
             setPrevChats(res);
             setNewChat(false);
             setReply(null);
-        } catch(err) {
-            console.log(err);
+            setCurrThreadId(newThreadId);
+        } catch {
+            setPrevChats([]);
         }
     }   
 
     const deleteThread = async (threadId) => {
         try {
-            const response = await fetch(`http://localhost:8080/api/thread/${threadId}`, {method: "DELETE"});
+            const response = await fetch(`${API_URL}/api/thread/${threadId}`, {method: "DELETE"});
             const res = await response.json();
-            console.log(res);
 
-            //updated threads re-render
+            if (!response.ok) {
+                throw new Error(res?.error || "Failed to delete thread");
+            }
+
             setAllThreads(prev => prev.filter(thread => thread.threadId !== threadId));
 
             if(threadId === currThreadId) {
                 createNewChat();
             }
 
-        } catch(err) {
-            console.log(err);
+        } catch {
+            return;
         }
     }
 
     return (
         <section className="sidebar">
             <button onClick={createNewChat}>
-                <img src="src/assets/blacklogo.png" alt="gpt logo" className="logo"></img>
+                <img src={logo} alt="gpt logo" className="logo"></img>
                 <span><i className="fa-solid fa-pen-to-square"></i></span>
             </button>
 
 
             <ul className="history">
                 {
-                    allThreads?.map((thread, idx) => (
-                        <li key={idx} 
-                            onClick={(e) => changeThread(thread.threadId)}
+                    Array.isArray(allThreads) && allThreads.map((thread, idx) => (
+                        <li key={thread.threadId || idx} 
+                            onClick={() => changeThread(thread.threadId)}
                             className={thread.threadId === currThreadId ? "highlighted": " "}
                         >
                             {thread.title}
                             <i className="fa-solid fa-trash"
-                                onClick={(e) => {
-                                    e.stopPropagation(); //stop event bubbling
+                                onClick={(event) => {
+                                    event.stopPropagation();
                                     deleteThread(thread.threadId);
                                 }}
                             ></i>

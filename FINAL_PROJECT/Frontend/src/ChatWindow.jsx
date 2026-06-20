@@ -1,23 +1,27 @@
 import "./ChatWindow.css";
 import Chat from "./Chat.jsx";
 import { MyContext } from "./MyContext.jsx";
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
 import { ScaleLoader } from "react-spinners";
+import { API_URL } from "./config.js";
 
 function ChatWindow() {
     const {prompt, setPrompt, reply, setReply, currThreadId, setPrevChats, setNewChat} = useContext(MyContext);
 
     const [loading, setLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
-
-    // Added this line
-    const API_URL = import.meta.env.VITE_API_URL;
+    const [error, setError] = useState("");
+    const pendingPromptRef = useRef("");
 
     const getReply = async () => {
-        setLoading(true);
-        setNewChat(false);
+        if (!prompt.trim() || loading) {
+            return;
+        }
 
-        console.log("message ", prompt, " threadId ", currThreadId);
+        pendingPromptRef.current = prompt.trim();
+        setLoading(true);
+        setError("");
+        setNewChat(false);
 
         const options = {
             method: "POST",
@@ -31,40 +35,43 @@ function ChatWindow() {
         };
 
         try {
-            // Changed only this line
             const response = await fetch(`${API_URL}/api/chat`, options);
-
             const res = await response.json();
 
-            console.log(res);
+            if (!response.ok) {
+                throw new Error(res?.error || "Failed to send chat message");
+            }
 
             setReply(res.reply);
 
         } catch(err) {
-            console.log(err);
+            setError(err.message || "Something went wrong");
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
     }
 
     useEffect(() => {
-        if(prompt && reply) {
-            setPrevChats(prevChats => (
-                [...prevChats,
+        const submittedPrompt = pendingPromptRef.current;
+
+        if (reply && submittedPrompt) {
+            setPrevChats(prevChats => ([
+                ...prevChats,
                 {
                     role: "user",
-                    content: prompt
+                    content: submittedPrompt
                 },
                 {
                     role: "assistant",
                     content: reply
-                }]
-            ));
+                }
+            ]));
+
+            pendingPromptRef.current = "";
         }
 
         setPrompt("");
-
-    }, [reply]);
+    }, [reply, setPrevChats, setPrompt]);
 
     const handleProfileClick = () => {
         setIsOpen(!isOpen);
@@ -103,18 +110,25 @@ function ChatWindow() {
 
             <ScaleLoader color="#fff" loading={loading} />
 
+            {error && <p className="info" role="alert">{error}</p>}
+
             <div className="chatInput">
                 <div className="inputBox">
                     <input
                         placeholder="Ask anything"
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' ? getReply() : ''}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                getReply();
+                            }
+                        }}
                     />
 
-                    <div id="submit" onClick={getReply}>
+                    <button id="submit" type="button" onClick={loading ? undefined : getReply} disabled={loading} aria-disabled={loading}>
                         <i className="fa-solid fa-paper-plane"></i>
-                    </div>
+                    </button>
                 </div>
 
                 <p className="info">
