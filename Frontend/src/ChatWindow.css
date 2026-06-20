@@ -83,10 +83,19 @@ input:focus {
     display: flex;
     align-items: center;
     justify-content: center;
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: inherit;
 }
 
 #submit i:hover {
     color: #fff;
+}
+
+#submit:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .info {

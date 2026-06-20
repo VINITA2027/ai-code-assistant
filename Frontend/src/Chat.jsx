@@ -1,5 +1,5 @@
 import "./Chat.css";
-import React, { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect } from "react";
 import { MyContext } from "./MyContext";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";

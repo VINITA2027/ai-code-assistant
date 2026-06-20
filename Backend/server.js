@@ -5,51 +5,57 @@ import mongoose from "mongoose";
 import chatRoutes from "./routes/chat.js";
 
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
+const MONGODB_URI = process.env.MONGODB_URI;
+const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "")
+    .split(",")
+    .map(origin => origin.trim())
+    .filter(Boolean);
 
-app.use(express.json());
-app.use(cors());
+app.use(express.json({ limit: "1mb" }));
+app.use(cors({
+    origin: allowedOrigins.length ? allowedOrigins : true
+}));
+
+app.get("/", (req, res) => {
+    return res.json({
+        status: "running",
+        service: "AI Code Assistant API"
+    });
+});
+
+app.get("/health", (req, res) => {
+    return res.status(200).json({ status: "ok" });
+});
 
 app.use("/api", chatRoutes);
 
-app.listen(PORT, () => {
-    console.log(`server running on ${PORT}`);
-    connectDB();
-});
-
-const connectDB = async() => {
+const connectDB = async () => {
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
-        console.log("Connected with Database!");
-    } catch(err) {
-        console.log("Failed to connect with Db", err);
+        if (!MONGODB_URI) {
+            throw new Error("Missing MongoDB connection string. Set MONGODB_URI.");
+        }
+
+        await mongoose.connect(MONGODB_URI, {
+            serverSelectionTimeoutMS: 10000
+        });
+
+        console.log("MongoDB connected successfully");
+    } catch (err) {
+        console.error("Mongo Error:", err);
+        process.exit(1);
     }
-}
+};
 
+const startServer = async () => {
+    await connectDB();
 
-// app.post("/test", async (req, res) => {
-//     const options = {
-//         method: "POST",
-//         headers: {
-//             "Content-Type": "application/json",
-//             "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-//         },
-//         body: JSON.stringify({
-//             model: "gpt-4o-mini",
-//             messages: [{
-//                 role: "user",
-//                 content: req.body.message
-//             }]
-//         })
-//     };
+    app.listen(PORT, () => {
+        console.log(`Server running on ${PORT}`);
+    });
+};
 
-//     try {
-//         const response = await fetch("https://api.openai.com/v1/chat/completions", options);
-//         const data = await response.json();
-//         //console.log(data.choices[0].message.content); //reply
-//         res.send(data.choices[0].message.content);
-//     } catch(err) {
-//         console.log(err);
-//     }
-// });
-
+startServer().catch(err => {
+    console.error("Server failed to start", err);
+    process.exit(1);
+});

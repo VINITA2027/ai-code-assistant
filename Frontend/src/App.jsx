@@ -25,9 +25,9 @@ function App() {
   return (
     <div className='app'>
       <MyContext.Provider value={providerValues}>
-          <Sidebar></Sidebar>
-          <ChatWindow></ChatWindow>
-        </MyContext.Provider>
+        <Sidebar />
+        <ChatWindow />
+      </MyContext.Provider>
     </div>
   )
 }

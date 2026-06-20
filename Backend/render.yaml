@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ai-code-assistant-backend
+    env: node
+    plan: starter
+    rootDir: Backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
